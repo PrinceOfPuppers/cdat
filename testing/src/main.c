@@ -55,6 +55,24 @@ int _process_ll_index(Linked_List *ll, int index){
 
     return index;
 }
+Linked_List_Node *_ll_get_node(Linked_List *ll, int index){
+    index = _process_ll_index(ll, index);
+
+    Linked_List_Node *n;
+    if(index<ll->len/2){
+        n = ll->head;
+        for(int i = 0; i < index; i++){
+            n = n->next;
+        }
+    }
+    else{
+        n = ll->tail;
+        for(int i = ll->len-1; i > index; i--){
+            n = n->prev;
+        }
+    }
+    return n;
+}
 
 
 void ll_append(Linked_List *ll, void *val){
@@ -72,6 +90,11 @@ void ll_append(Linked_List *ll, void *val){
         ll->len+=1;
     }
 }
+void ll_append_copy(Linked_List *ll, void *val, size_t element_size){
+    void *v = malloc_wrapper(element_size);
+    memcpy(v, val, element_size);
+    ll_append(ll, v);
+}
 
 void ll_push(Linked_List *ll, void *val){
     Linked_List_Node *n;
@@ -87,6 +110,51 @@ void ll_push(Linked_List *ll, void *val){
         ll->head = n;
         ll->len++;
     }
+}
+void ll_push_copy(Linked_List *ll, void *val, size_t element_size){
+    void *v = malloc_wrapper(element_size);
+    memcpy(v, val, element_size);
+    ll_push(ll, v);
+}
+
+void ll_insert(Linked_List *ll, void *val, int index){
+    index = _process_ll_index(ll, index);
+
+    if(ll->len == 0){
+        Linked_List_Node *n = ll_node_create(val, NULL, NULL);
+        ll->head = n;
+        ll->tail = n;
+        ll->len = 1;
+        return;
+    }
+
+    // ll has at least 1 node
+    if(index == 0){
+        Linked_List_Node *n = ll_node_create(val, ll->head, NULL);
+        ll->head->prev = n;
+        ll->head = n;
+        ll->len++;
+        return;
+    }
+
+    Linked_List_Node *prev_n = _ll_get_node(ll, index-1);
+    Linked_List_Node *n = ll_node_create(val, NULL, prev_n);
+    Linked_List_Node *next_n = prev_n->next;
+    // inserted at the end
+    if(next_n == NULL){
+        ll->tail = n;
+    }
+    else{
+        n->next = next_n;
+        next_n->prev = n;
+    }
+    prev_n->next = n;
+    ll->len++;
+}
+void ll_insert_copy(Linked_List *ll, void *val, size_t element_size, int index){
+    void *v = malloc_wrapper(element_size);
+    memcpy(v, val, element_size);
+    ll_insert(ll, v, index);
 }
 
 void *ll_pop_back(Linked_List *ll){
@@ -130,24 +198,6 @@ void *ll_pop_front(Linked_List *ll){
 }
 
 
-Linked_List_Node *_ll_get_node(Linked_List *ll, int index){
-    index = _process_ll_index(ll, index);
-
-    Linked_List_Node *n;
-    if(index<ll->len/2){
-        n = ll->head;
-        for(int i = 0; i < index; i++){
-            n = n->next;
-        }
-    }
-    else{
-        n = ll->tail;
-        for(int i = ll->len-1; i >= index; i--){
-            n = n->next;
-        }
-    }
-    return n;
-}
 
 void *ll_remove(Linked_List *ll, int index){
     index = _process_ll_index(ll, index);
@@ -183,13 +233,11 @@ void *ll_remove(Linked_List *ll, int index){
     return val;
 }
 
-void ll_insert(Linked_List *ll, int index){
-    index = _process_ll_index(ll, index);
-    // TODO: finish insert function
-}
 
 void *ll_get(Linked_List *ll, int index){
-    return _ll_get_node(ll, index)->val;
+    Linked_List_Node *n = _ll_get_node(ll, index);
+    printf("here %i\n", *(int *)n->val);
+    return n->val;
 }
 
 // values point to arr
@@ -267,9 +315,11 @@ int ll_cmp_ll(Linked_List *la, Linked_List *lb, size_t element_size){
             return na == NULL;
         }
 
-        if (!memcmp(na->val, nb->val, element_size)){
+        if (memcmp(na->val, nb->val, element_size) != 0){
             return 0;
         }
+        na = na->next;
+        nb = nb->next;
     }
 }
 
@@ -283,55 +333,70 @@ int ll_cmp_arr(Linked_List *ll, void *arr, size_t arr_size, size_t element_size)
     for(int i = 0; i < arr_size; i++){
         assert(n != NULL);
 
-        if (!memcmp(n->val, arr+i*element_size, element_size)){
+        printf("here %i %i %i\n", i, *(int *)n->val, *(int *)(arr+i*element_size));
+        if (memcmp(n->val, arr+i*element_size, element_size) != 0){
             return 0;
         }
+
+        n = n->next;
     }
     assert(n == NULL);
     return 1;
 }
 
-int test_ll(){
+void ll_test(){
+    puts("ll_test: creation from array, no copy");
     int x[] = {0, 1, 2, 3, 4};
     Linked_List *la = ll_from_arr(x, 5, sizeof(int));
-    //ll_insert();
+    assert(ll_cmp_arr(la, (int[]){0,1,2,3,4}, 5, sizeof(int)));
+
+    x[2] = 6;
+    assert(ll_cmp_arr(la, (int[]){0,1,6,3,4}, 5, sizeof(int)));
+    x[2] = 2;
+
+    puts("ll_test: insertion, no copy");
+    int y = 10;
+    ll_insert(la, &y, 2);
+    assert(ll_cmp_arr(la, (int[]){0,1,10,2,3,4}, 6, sizeof(int)));
+    y = 3;
+    assert(ll_cmp_arr(la, (int[]){0,1,3,2,3,4}, 6, sizeof(int)));
+
+    puts("ll_test: removal");
+    assert(*(int *)ll_remove(la, 2) == 3);
+    assert(ll_cmp_arr(la, (int[]){0,1,2,3,4}, 5, sizeof(int)));
+
+    puts("ll_test: append and push with copy");
+    y = 6;
+    ll_push_copy(la, &y, sizeof(int));
+    ll_append_copy(la, &y, sizeof(int));
+    assert(ll_cmp_arr(la, (int[]){6,0,1,2,3,4,6}, 7, sizeof(int)));
+    y = 3;
+    assert(ll_cmp_arr(la, (int[]){6,0,1,2,3,4,6}, 7, sizeof(int)));
+
+    puts("ll_test: pop front and back");
+    assert(*(int *)ll_pop_front(la) == 6);
+    assert(*(int *)ll_pop_back(la) == 6);
+    assert(ll_cmp_arr(la, (int[]){0,1,2,3,4}, 5, sizeof(int)));
+
+    puts("ll_test: get");
+    assert(*(int *)ll_get(la, 3) == 3);
+
+    puts("ll_test: iter");
+    Linked_List_Node *n;
+    ll_iter_reset(la);
+    int i = 0;
+    while( (n = ll_next(la)) ){
+        assert(*(int *)n->val == i);
+        i++;
+    }
+
+    // TODO: test ll_copy_from_arr
     //Linked_List *lb = ll_copy_from_arr(x, 5, sizeof(int));
+    //ll_cmp_arr(la, {})
 }
 
 
 
 int main(){
-    int x[] = {0, 1, 2, 3, 4};
-    Linked_List *ll = ll_from_arr(x, 5, sizeof(int));
-    Linked_List *ly = ll_copy_from_arr(x, 5, sizeof(int));
-
-    int *y = (int *)ll_copy_to_arr(ll, sizeof(int));
-
-    for(int i = 0; i < 5; i++){
-        printf("%i \n", y[i]);
-    }
-
-    //printf("here %i\n", *(int *)ll->head->next->val);
-    Linked_List_Node *n;
-    ll_iter_reset(ll);
-    while( (n = ll_next(ll)) ){
-        printf("here %i\n", *(int *)n->val);
-    }
-
-    x[2] = 10;
-
-    for(int i = 0; i < 5; i++){
-        printf("%i \n", y[i]);
-    }
-
-    //printf("here %i\n", *(int *)ll->head->next->val);
-    ll_iter_reset(ll);
-    while( (n = ll_next(ll)) ){
-        printf("here %i\n", *(int *)n->val);
-    }
-
-    ll_iter_reset(ly);
-    while( (n = ll_next(ly)) ){
-        printf("here %i\n", *(int *)n->val);
-    }
+    ll_test();
 }
