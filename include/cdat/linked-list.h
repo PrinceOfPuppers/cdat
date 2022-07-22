@@ -22,17 +22,23 @@ typedef struct Linked_List {
     size_t len;
 
     Linked_List_Node *_next;
+
+    int copy_on_write;
 } Linked_List;
 
-void ll_init_empty(Linked_List *ll);
+void ll_init_empty(Linked_List *ll, int copy_on_write);
 // values point to arr
-Linked_List *ll_from_arr(void *arr, size_t arr_len, size_t val_size);
-Linked_List *ll_copy_from_arr(void *arr, size_t arr_len, size_t val_size);
-void *ll_copy_to_arr(Linked_List *ll);
+Linked_List *ll_from_arr(void *arr, size_t arr_len, size_t val_size, int copy_on_write);
+//Linked_List *ll_copy_from_arr(void *arr, size_t arr_len, size_t val_size);
+//void *ll_copy_to_arr(Linked_List *ll);
+void *ll_to_arr(Linked_List *ll);
 
-// destroys ll and its nodes, does not touch values
-void ll_destroy_keep_vals(Linked_List *ll);
-void ll_destroy_free_vals(Linked_List *ll);
+// free ll and its nodes, does not touch values
+void ll_free_keep_vals(Linked_List *ll);
+// free ll and its nodes, frees vals
+void ll_free_free_vals(Linked_List *ll);
+// if copy_on_write, free vals and ll, else just free ll
+void ll_free(Linked_List *ll);
 
 
 Linked_List_Node *ll_next(Linked_List *ll);
@@ -41,11 +47,8 @@ void ll_iter_reset(Linked_List *ll);
 void *ll_get(Linked_List *ll, int index, size_t *out_size);
 
 void ll_append(Linked_List *ll, void *val, size_t val_size);
-void ll_append_copy(Linked_List *ll, void *val, size_t val_size);
 void ll_push(Linked_List *ll, void *val, size_t val_size);
-void ll_push_copy(Linked_List *ll, void *val, size_t val_size);
 void ll_insert(Linked_List *ll, void *val, size_t val_size, int index);
-void ll_insert_copy(Linked_List *ll, void *val, size_t val_size, int index);
 
 void *ll_pop_back(Linked_List *ll, size_t *out_size);
 void *ll_pop_front(Linked_List *ll, size_t *out_size);

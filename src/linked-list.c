@@ -19,17 +19,17 @@ Linked_List_Node *ll_node_create(void *val, size_t val_size, Linked_List_Node *n
 
 
 
-void ll_init_empty(Linked_List *ll){
+void ll_init_empty(Linked_List *ll, int copy_on_write){
     ll->head = NULL;
     ll->tail = NULL;
     ll->len = 0;
-    
+    ll->copy_on_write = copy_on_write;
 }
 
 // values point to arr
-Linked_List *ll_from_arr(void *arr, size_t arr_len, size_t val_size){
+Linked_List *ll_from_arr(void *arr, size_t arr_len, size_t val_size, int copy_on_write){
     Linked_List *ll = malloc_wrapper(sizeof(Linked_List));
-    ll->len = 0;
+    ll_init_empty(ll, copy_on_write);
 
     void *p;
     for(int i = 0; i < arr_len; i++){
@@ -40,23 +40,7 @@ Linked_List *ll_from_arr(void *arr, size_t arr_len, size_t val_size){
     return ll;
 }
 
-Linked_List *ll_copy_from_arr(void *arr, size_t arr_len, size_t val_size){
-    Linked_List *ll = malloc_wrapper(sizeof(Linked_List));
-    ll->len = 0;
-
-    void *p;
-    void *v;
-    for(int i = 0; i < arr_len; i++){
-        v = malloc_wrapper(val_size);
-        p = arr+i*val_size;
-        memcpy(v, p, val_size);
-        ll_append(ll, v, val_size);
-    }
-
-    return ll;
-}
-
-void *ll_copy_to_arr(Linked_List *ll){
+void *ll_to_arr(Linked_List *ll){
     if(ll->len == 0){
         return NULL;
     }
@@ -78,18 +62,25 @@ void *ll_copy_to_arr(Linked_List *ll){
 
 
 // destroys ll and its nodes, does not touch values
-void ll_destroy_keep_vals(Linked_List *ll){
+void ll_free_keep_vals(Linked_List *ll){
     while(ll->len > 0){
         ll_pop_back(ll, NULL);
     }
     free(ll);
 }
 
-void ll_destroy_free_vals(Linked_List *ll){
+void ll_free_free_vals(Linked_List *ll){
     while(ll->len > 0){
         free(ll_pop_back(ll, NULL));
     }
     free(ll);
+}
+
+void ll_free(Linked_List *ll){
+    if(ll->copy_on_write){
+        return ll_free_free_vals(ll);
+    }
+    return ll_free_keep_vals(ll);
 }
 
 
@@ -134,7 +125,7 @@ static Linked_List_Node *_ll_get_node(Linked_List *ll, int index){
 }
 
 
-void ll_append(Linked_List *ll, void *val, size_t val_size){
+void _ll_append_ref(Linked_List *ll, void *val, size_t val_size){
     Linked_List_Node *n;
     if(ll->tail == NULL){
         n = ll_node_create(val, val_size, NULL, NULL);
@@ -149,13 +140,20 @@ void ll_append(Linked_List *ll, void *val, size_t val_size){
         ll->len+=1;
     }
 }
-void ll_append_copy(Linked_List *ll, void *val, size_t val_size){
+void _ll_append_copy(Linked_List *ll, void *val, size_t val_size){
     void *v = malloc_wrapper(val_size);
     memcpy(v, val, val_size);
-    ll_append(ll, v, val_size);
+    _ll_append_ref(ll, v, val_size);
 }
 
-void ll_push(Linked_List *ll, void *val, size_t val_size){
+void ll_append(Linked_List *ll, void *val, size_t val_size){
+    if(ll->copy_on_write){
+        return _ll_append_copy(ll, val, val_size);
+    }
+    return _ll_append_ref(ll, val, val_size);
+}
+
+void _ll_push_ref(Linked_List *ll, void *val, size_t val_size){
     Linked_List_Node *n;
     if(ll->head == NULL){
         n = ll_node_create(val, val_size, NULL, NULL);
@@ -170,13 +168,19 @@ void ll_push(Linked_List *ll, void *val, size_t val_size){
         ll->len++;
     }
 }
-void ll_push_copy(Linked_List *ll, void *val, size_t val_size){
+void _ll_push_copy(Linked_List *ll, void *val, size_t val_size){
     void *v = malloc_wrapper(val_size);
     memcpy(v, val, val_size);
-    ll_push(ll, v, val_size);
+    _ll_push_ref(ll, v, val_size);
+}
+void ll_push(Linked_List *ll, void *val, size_t val_size){
+    if(ll->copy_on_write){
+        return _ll_push_copy(ll, val, val_size);
+    }
+    return _ll_push_ref(ll, val, val_size);
 }
 
-void ll_insert(Linked_List *ll, void *val, size_t val_size, int index){
+void _ll_insert_ref(Linked_List *ll, void *val, size_t val_size, int index){
     index = _process_ll_index(ll, index);
 
     if(ll->len == 0){
@@ -210,10 +214,16 @@ void ll_insert(Linked_List *ll, void *val, size_t val_size, int index){
     prev_n->next = n;
     ll->len++;
 }
-void ll_insert_copy(Linked_List *ll, void *val, size_t val_size, int index){
+void _ll_insert_copy(Linked_List *ll, void *val, size_t val_size, int index){
     void *v = malloc_wrapper(val_size);
     memcpy(v, val, val_size);
-    ll_insert(ll, v, val_size, index);
+    _ll_insert_ref(ll, v, val_size, index);
+}
+void ll_insert(Linked_List *ll, void *val, size_t val_size, int index){
+    if(ll->copy_on_write){
+        return _ll_insert_copy(ll, val, val_size, index);
+    }
+    return _ll_insert_ref(ll, val, val_size, index);
 }
 
 void *ll_pop_back(Linked_List *ll, size_t *out_size){
@@ -393,16 +403,16 @@ int ll_cmp_arr(Linked_List *ll, void *arr, size_t arr_size, size_t val_size){
 }
 
 void ll_test(){
-    puts("ll_test: creation from array, no copy");
+    puts("ll_test: creation from array, no copy on write");
     int x[] = {0, 1, 2, 3, 4};
-    Linked_List *la = ll_from_arr(x, 5, sizeof(int));
+    Linked_List *la = ll_from_arr(x, 5, sizeof(int), 0);
     assert(ll_cmp_arr(la, (int[]){0,1,2,3,4}, 5, sizeof(int)));
 
     x[2] = 6;
     assert(ll_cmp_arr(la, (int[]){0,1,6,3,4}, 5, sizeof(int)));
     x[2] = 2;
 
-    puts("ll_test: insertion, no copy");
+    puts("ll_test: insertion, no copy on write");
     int y = 10;
     ll_insert(la, &y, sizeof(int), 2);
     assert(ll_cmp_arr(la, (int[]){0,1,10,2,3,4}, 6, sizeof(int)));
@@ -416,17 +426,17 @@ void ll_test(){
     assert(ll_cmp_arr(la, (int[]){0,1,2,3,4}, 5, sizeof(int)));
 
 
-    puts("ll_test: append and push with copy");
+    puts("ll_test: append and push, no copy on write");
     y = 6;
-    ll_push_copy(la, &y, sizeof(int));
-    ll_append_copy(la, &y, sizeof(int));
+    ll_push(la, &y, sizeof(int));
+    ll_append(la, &y, sizeof(int));
     assert(ll_cmp_arr(la, (int[]){6,0,1,2,3,4,6}, 7, sizeof(int)));
     y = 3;
-    assert(ll_cmp_arr(la, (int[]){6,0,1,2,3,4,6}, 7, sizeof(int)));
+    assert(ll_cmp_arr(la, (int[]){3,0,1,2,3,4,3}, 7, sizeof(int)));
 
-    puts("ll_test: pop front and back");
-    assert(*(int *)ll_pop_front(la, NULL) == 6);
-    assert(*(int *)ll_pop_back(la, NULL) == 6);
+    puts("ll_test: pop front and back, no copy on write");
+    assert(*(int *)ll_pop_front(la, NULL) == 3);
+    assert(*(int *)ll_pop_back(la, NULL) == 3);
     assert(ll_cmp_arr(la, (int[]){0,1,2,3,4}, 5, sizeof(int)));
 
     puts("ll_test: get");
@@ -441,18 +451,34 @@ void ll_test(){
         i++;
     }
 
-    puts("ll_test: creation from array, copy");
+    puts("ll_test: creation from array, copy on write");
     int z[] = {6, 7, 8, 9, 10};
-    Linked_List *lb = ll_copy_from_arr(z, 5, sizeof(int));
+    Linked_List *lb = ll_from_arr(z, 5, sizeof(int), 1);
     assert(ll_cmp_arr(lb, (int[]){6, 7, 8, 9, 10}, 5, sizeof(int)));
     z[3] = 0;
     assert(ll_cmp_arr(lb, (int[]){6, 7, 8, 9, 10}, 5, sizeof(int)));
 
-    puts("ll_test: freeing");
-    ll_destroy_keep_vals(la);
-    ll_destroy_free_vals(lb);
+    puts("ll_test: append and push, copy on write");
+    y = 6;
+    ll_push(lb, &y, sizeof(int));
+    ll_append(lb, &y, sizeof(int));
+    assert(ll_cmp_arr(lb, (int[]){6,6,7,8,9,10,6}, 7, sizeof(int)));
+    y = 3;
+    assert(ll_cmp_arr(lb, (int[]){6,6,7,8,9,10,6}, 7, sizeof(int)));
 
-    //TODO: add ll_is_in test
+    puts("ll_test: is in on write");
+    assert(ll_cmp_arr(lb, (int[]){6,6,7,8,9,10,6}, 7, sizeof(int)));
+    int a = 7;
+    assert(ll_is_in(lb, &a, sizeof(int)));
+
+    puts("ll_test: pop front and back, copy on write");
+    assert(*(int *)ll_pop_front(lb, NULL) == 6);
+    assert(*(int *)ll_pop_back(lb, NULL) == 6);
+    assert(ll_cmp_arr(lb, (int[]){6, 7, 8, 9, 10}, 5, sizeof(int)));
+
+    puts("ll_test: freeing");
+    ll_free(la);
+    ll_free(lb);
 
     puts("ll_test: done");
 }

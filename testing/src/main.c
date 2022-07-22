@@ -14,19 +14,21 @@ typedef struct Hash_Set {
     Linked_List *hs_arr;
     size_t hash_max;
 
+    int copy_on_write;
 } Hash_Set;
 
-Hash_Set *hs_create(size_t hash_max){
+Hash_Set *hs_create(size_t hash_max, int copy_on_write){
     Hash_Set *hs = malloc_wrapper(sizeof(Hash_Set));
     hs->hash_max = hash_max;
-    ll_init_empty(&hs->keys_ll);
+    hs->copy_on_write = copy_on_write;
+    ll_init_empty(&hs->keys_ll, copy_on_write);
 
     // init array of ll
     hs->hs_arr = malloc_wrapper(sizeof(Linked_List)*hash_max);
 
     // init all ll
     for(int i = 0; i < hash_max; i++){
-        ll_init_empty(&(hs->hs_arr)[i]);
+        ll_init_empty(&(hs->hs_arr)[i], copy_on_write);
     }
 
     return hs;
@@ -105,22 +107,24 @@ size_t hs_len(Hash_Set *hs){
     return hs->keys_ll.len;
 }
 
-Hash_Set *hs_union(Hash_Set *hs1, Hash_Set *hs2){
-    Hash_Set *h = hs_create(hs1->hash_max > hs2->hash_max ? hs1->hash_max : hs2->hash_max);
+Hash_Set *hs_union(Hash_Set *hs1, Hash_Set *hs2, int copy_on_write){
+    Hash_Set *h = hs_create(hs1->hash_max > hs2->hash_max ? hs1->hash_max : hs2->hash_max, copy_on_write);
     hs_from_ll(h, &hs1->keys_ll);
     hs_from_ll(h, &hs2->keys_ll);
     return h;
 }
 
+/*
 Hash_Set *hs_union_copy(Hash_Set *hs1, Hash_Set *hs2){
     Hash_Set *h = hs_create(hs1->hash_max > hs2->hash_max ? hs1->hash_max : hs2->hash_max);
     hs_copy_from_ll(h, &hs1->keys_ll);
     hs_copy_from_ll(h, &hs2->keys_ll);
     return h;
 }
+*/
 
-Hash_Set *hs_intersection(Hash_Set *hs1, Hash_Set *hs2){
-    Hash_Set *h = hs_create(hs1->hash_max > hs2->hash_max ? hs1->hash_max : hs2->hash_max);
+Hash_Set *hs_intersection(Hash_Set *hs1, Hash_Set *hs2, int copy_on_write){
+    Hash_Set *h = hs_create(hs1->hash_max > hs2->hash_max ? hs1->hash_max : hs2->hash_max, copy_on_write);
 
     Linked_List_Node *n = hs1->keys_ll.head;
     while(n != NULL){
@@ -132,6 +136,7 @@ Hash_Set *hs_intersection(Hash_Set *hs1, Hash_Set *hs2){
 
     return h;
 }
+/*
 Hash_Set *hs_intersection_copy(Hash_Set *hs1, Hash_Set *hs2){
     Hash_Set *h = hs_create(hs1->hash_max > hs2->hash_max ? hs1->hash_max : hs2->hash_max);
 
@@ -145,6 +150,7 @@ Hash_Set *hs_intersection_copy(Hash_Set *hs1, Hash_Set *hs2){
 
     return h;
 }
+*/
 
 
 
