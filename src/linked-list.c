@@ -125,7 +125,7 @@ static Linked_List_Node *_ll_get_node(Linked_List *ll, int index){
 }
 
 
-void _ll_append_ref(Linked_List *ll, void *val, size_t val_size){
+static void _ll_append_ref(Linked_List *ll, void *val, size_t val_size){
     Linked_List_Node *n;
     if(ll->tail == NULL){
         n = ll_node_create(val, val_size, NULL, NULL);
@@ -140,7 +140,7 @@ void _ll_append_ref(Linked_List *ll, void *val, size_t val_size){
         ll->len+=1;
     }
 }
-void _ll_append_copy(Linked_List *ll, void *val, size_t val_size){
+static void _ll_append_copy(Linked_List *ll, void *val, size_t val_size){
     void *v = malloc_wrapper(val_size);
     memcpy(v, val, val_size);
     _ll_append_ref(ll, v, val_size);
@@ -153,7 +153,7 @@ void ll_append(Linked_List *ll, void *val, size_t val_size){
     return _ll_append_ref(ll, val, val_size);
 }
 
-void _ll_push_ref(Linked_List *ll, void *val, size_t val_size){
+static void _ll_push_ref(Linked_List *ll, void *val, size_t val_size){
     Linked_List_Node *n;
     if(ll->head == NULL){
         n = ll_node_create(val, val_size, NULL, NULL);
@@ -168,7 +168,7 @@ void _ll_push_ref(Linked_List *ll, void *val, size_t val_size){
         ll->len++;
     }
 }
-void _ll_push_copy(Linked_List *ll, void *val, size_t val_size){
+static void _ll_push_copy(Linked_List *ll, void *val, size_t val_size){
     void *v = malloc_wrapper(val_size);
     memcpy(v, val, val_size);
     _ll_push_ref(ll, v, val_size);
@@ -180,7 +180,7 @@ void ll_push(Linked_List *ll, void *val, size_t val_size){
     return _ll_push_ref(ll, val, val_size);
 }
 
-void _ll_insert_ref(Linked_List *ll, void *val, size_t val_size, int index){
+static void _ll_insert_ref(Linked_List *ll, void *val, size_t val_size, int index){
     index = _process_ll_index(ll, index);
 
     if(ll->len == 0){
@@ -214,7 +214,7 @@ void _ll_insert_ref(Linked_List *ll, void *val, size_t val_size, int index){
     prev_n->next = n;
     ll->len++;
 }
-void _ll_insert_copy(Linked_List *ll, void *val, size_t val_size, int index){
+static void _ll_insert_copy(Linked_List *ll, void *val, size_t val_size, int index){
     void *v = malloc_wrapper(val_size);
     memcpy(v, val, val_size);
     _ll_insert_ref(ll, v, val_size, index);
@@ -400,6 +400,14 @@ int ll_cmp_arr(Linked_List *ll, void *arr, size_t arr_size, size_t val_size){
     }
     assert(n == NULL);
     return 1;
+}
+
+void ll_map( Linked_List *ll, void (*f)(void *, size_t) ){
+    Linked_List_Node *n = ll->head;
+    while(n != NULL){
+        (*f)(n->val, n->val_size);
+        n = n->next;
+    }
 }
 
 void ll_test(){

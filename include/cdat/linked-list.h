@@ -60,6 +60,8 @@ int ll_try_remove_val(Linked_List *ll, void *val, size_t val_size);
 int ll_cmp_ll(Linked_List *la, Linked_List *lb);
 int ll_cmp_arr(Linked_List *ll, void *arr, size_t arr_size, size_t val_size);
 
+void ll_map( Linked_List *ll, void (*f)(void *, size_t) );
+
 void ll_test();
 
 #endif

@@ -21,14 +21,14 @@ Hash_Set *hs_create(size_t hash_max, int copy_on_write){
     Hash_Set *hs = malloc_wrapper(sizeof(Hash_Set));
     hs->hash_max = hash_max;
     hs->copy_on_write = copy_on_write;
-    ll_init_empty(&hs->keys_ll, copy_on_write);
+    ll_init_empty(&hs->keys_ll, 0);
 
     // init array of ll
     hs->hs_arr = malloc_wrapper(sizeof(Linked_List)*hash_max);
 
     // init all ll
     for(int i = 0; i < hash_max; i++){
-        ll_init_empty(&(hs->hs_arr)[i], copy_on_write);
+        ll_init_empty(&(hs->hs_arr)[i], 0);
     }
 
     return hs;
@@ -41,7 +41,7 @@ int hs_is_in(Hash_Set *hs, void *val, size_t val_size){
 }
 
 // returns 1 if added, 0 if already exists
-int hs_add(Hash_Set *hs, void *val, size_t val_size){
+static int _hs_add_ref(Hash_Set *hs, void *val, size_t val_size){
     uint32_t h = hash_digit_fold(val, val_size, hs->hash_max);
     if(!ll_is_in(&hs->hs_arr[h], val, val_size)){
         ll_append(&hs->hs_arr[h], val, val_size);
@@ -51,9 +51,7 @@ int hs_add(Hash_Set *hs, void *val, size_t val_size){
     return 0;
 }
 
-// TODO: distinction between copy and non-copy hash sets is required, otherwise freeing resources becomes a nighmare
-// returns 1 if added, 0 if already exists
-int hs_add_copy(Hash_Set *hs, void *val, size_t val_size){
+static int _hs_add_copy(Hash_Set *hs, void *val, size_t val_size){
     uint32_t h = hash_digit_fold(val, val_size, hs->hash_max);
     if(!ll_is_in(&hs->hs_arr[h], val, val_size)){
         void *v = malloc_wrapper(val_size);
@@ -65,22 +63,19 @@ int hs_add_copy(Hash_Set *hs, void *val, size_t val_size){
     return 0;
 }
 
+int hs_add(Hash_Set *hs, void *val, size_t val_size){
+    if(hs->copy_on_write){
+        return _hs_add_copy(hs, val, val_size);
+    }
+    return _hs_add_ref(hs, val, val_size);
+}
+
 void hs_from_ll(Hash_Set *hs, Linked_List *ll){
     //Hash_Set *hs = hs_create(hash_max);
     Linked_List_Node *n = ll->head;
 
     while(n != NULL){
         hs_add(hs, n->val, n->val_size);
-        n = n->next;
-    }
-}
-
-void hs_copy_from_ll(Hash_Set *hs, Linked_List *ll){
-    //Hash_Set *hs = hs_create(hash_max);
-    Linked_List_Node *n = ll->head;
-
-    while(n != NULL){
-        hs_add_copy(hs, n->val, n->val_size);
         n = n->next;
     }
 }
@@ -114,21 +109,12 @@ Hash_Set *hs_union(Hash_Set *hs1, Hash_Set *hs2, int copy_on_write){
     return h;
 }
 
-/*
-Hash_Set *hs_union_copy(Hash_Set *hs1, Hash_Set *hs2){
-    Hash_Set *h = hs_create(hs1->hash_max > hs2->hash_max ? hs1->hash_max : hs2->hash_max);
-    hs_copy_from_ll(h, &hs1->keys_ll);
-    hs_copy_from_ll(h, &hs2->keys_ll);
-    return h;
-}
-*/
-
 Hash_Set *hs_intersection(Hash_Set *hs1, Hash_Set *hs2, int copy_on_write){
     Hash_Set *h = hs_create(hs1->hash_max > hs2->hash_max ? hs1->hash_max : hs2->hash_max, copy_on_write);
 
     Linked_List_Node *n = hs1->keys_ll.head;
     while(n != NULL){
-        if(ll_is_in(&hs2->keys_ll, n->val, n->val_size)){
+        if(hs_is_in(hs2, n->val, n->val_size)){
             hs_add(h, n->val, n->val_size);
         }
         n = n->next;
@@ -136,22 +122,30 @@ Hash_Set *hs_intersection(Hash_Set *hs1, Hash_Set *hs2, int copy_on_write){
 
     return h;
 }
-/*
-Hash_Set *hs_intersection_copy(Hash_Set *hs1, Hash_Set *hs2){
-    Hash_Set *h = hs_create(hs1->hash_max > hs2->hash_max ? hs1->hash_max : hs2->hash_max);
 
-    Linked_List_Node *n = hs1->keys_ll.head;
+int hs_is_subset(Hash_Set *potential_subset, Hash_Set *potential_superset){
+    Linked_List_Node *n = potential_subset->keys_ll.head;
     while(n != NULL){
-        if(ll_is_in(&hs2->keys_ll, n->val, n->val_size)){
-            hs_add_copy(h, n->val, n->val_size);
+        if(!hs_is_in(potential_superset, n->val, n->val_size)){
+            return 0;
         }
         n = n->next;
     }
 
-    return h;
+    return 1;
 }
-*/
 
+int hs_are_equal(Hash_Set *hs1, Hash_Set *hs2){
+    if(hs_len(hs1) != hs_len(hs2)){
+        return 0;
+    }
+
+    return hs_is_subset(hs1, hs2);
+}
+
+void hs_map( Hash_Set *hs, void (*f)(void *, size_t) ){
+    ll_map(&hs->keys_ll, f);
+}
 
 
 int main(){
