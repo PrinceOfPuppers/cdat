@@ -19,17 +19,18 @@ Linked_List_Node *ll_node_create(void *val, size_t val_size, Linked_List_Node *n
 
 
 
-void ll_init_empty(Linked_List *ll, int copy_on_write){
+void ll_init_empty(Linked_List *ll, cdat_cmp_func cmp, int copy_on_write){
     ll->head = NULL;
     ll->tail = NULL;
     ll->len = 0;
     ll->copy_on_write = copy_on_write;
+    ll->cmp = cmp;
 }
 
 // values point to arr
-Linked_List *ll_from_arr(void *arr, size_t arr_len, size_t val_size, int copy_on_write){
+Linked_List *ll_from_arr(void *arr, size_t arr_len, size_t val_size, cdat_cmp_func cmp, int copy_on_write){
     Linked_List *ll = malloc_wrapper(sizeof(Linked_List));
-    ll_init_empty(ll, copy_on_write);
+    ll_init_empty(ll, cmp, copy_on_write);
 
     void *p;
     for(int i = 0; i < arr_len; i++){
@@ -323,13 +324,12 @@ void *ll_get(Linked_List *ll, int index, size_t *out_size){
     return n->val;
 }
 
+
 int ll_is_in(Linked_List *ll, void *val, size_t val_size){
     Linked_List_Node *n = ll->head;
     while(n != NULL){
-        if(val_size == n->val_size){
-            if (memcmp(n->val, val, val_size) == 0){
-                return 1;
-            }
+        if(ll->cmp(n->val, n->val_size, val, val_size)){
+            return 1;
         }
         n = n->next;
     }
@@ -340,11 +340,9 @@ int ll_try_remove_val(Linked_List *ll, void *val, size_t val_size){
     Linked_List_Node *n = ll->head;
     int i = 0;
     while(n != NULL){
-        if(val_size == n->val_size){
-            if (memcmp(n->val, val, val_size) == 0){
-                ll_remove(ll, i, NULL);
-                return 1;
-            }
+        if(ll->cmp(n->val, n->val_size, val, val_size)){
+            ll_remove(ll, i, NULL);
+            return 1;
         }
         i++;
         n = n->next;
@@ -365,13 +363,10 @@ int ll_cmp_ll(Linked_List *la, Linked_List *lb){
             return na == NULL;
         }
 
-        if(na->val_size != nb->val_size){
+        if(!la->cmp(na->val, na->val_size, nb->val, nb->val_size)){
             return 0;
         }
 
-        if (memcmp(na->val, nb->val, na->val_size) != 0){
-            return 0;
-        }
         na = na->next;
         nb = nb->next;
     }
@@ -388,11 +383,7 @@ int ll_cmp_arr(Linked_List *ll, void *arr, size_t arr_size, size_t val_size){
     Linked_List_Node *n = ll->head;
 
     for(int i = 0; i < arr_size; i++){
-        if((n == NULL) || n->val_size != val_size){
-            return 0;
-        }
-
-        if (memcmp(n->val, arr+i*val_size, val_size) != 0){
+        if((n == NULL) || !ll->cmp(n->val, n->val_size, arr+i*val_size, val_size)){
             return 0;
         }
 
@@ -402,18 +393,35 @@ int ll_cmp_arr(Linked_List *ll, void *arr, size_t arr_size, size_t val_size){
     return 1;
 }
 
-void ll_map( Linked_List *ll, void (*f)(void *, size_t) ){
+void ll_map( Linked_List *ll, cdat_map_func map ){
     Linked_List_Node *n = ll->head;
+    int i = 0;
     while(n != NULL){
-        (*f)(n->val, n->val_size);
+        (*map)(i, n->val, n->val_size);
         n = n->next;
+        i++;
     }
 }
+
+
+static int _cmp_int(void *va, size_t va_size, void *vb, size_t vb_size){
+    if(va_size!=vb_size){
+        return 0;
+    }
+    return *(int *)va == *(int *)vb;
+}
+
+static void _ll_test_map(int index, void *val, size_t val_size){
+    assert(val_size == sizeof(int));
+    *(int *)val = index;
+}
+
 
 void ll_test(){
     puts("ll_test: creation from array, no copy on write");
     int x[] = {0, 1, 2, 3, 4};
-    Linked_List *la = ll_from_arr(x, 5, sizeof(int), 0);
+    cdat_cmp_func cmp = _cmp_int;
+    Linked_List *la = ll_from_arr(x, 5, sizeof(int), cmp, 0);
     assert(ll_cmp_arr(la, (int[]){0,1,2,3,4}, 5, sizeof(int)));
 
     x[2] = 6;
@@ -461,7 +469,7 @@ void ll_test(){
 
     puts("ll_test: creation from array, copy on write");
     int z[] = {6, 7, 8, 9, 10};
-    Linked_List *lb = ll_from_arr(z, 5, sizeof(int), 1);
+    Linked_List *lb = ll_from_arr(z, 5, sizeof(int), cmp, 1);
     assert(ll_cmp_arr(lb, (int[]){6, 7, 8, 9, 10}, 5, sizeof(int)));
     z[3] = 0;
     assert(ll_cmp_arr(lb, (int[]){6, 7, 8, 9, 10}, 5, sizeof(int)));
@@ -483,6 +491,15 @@ void ll_test(){
     assert(*(int *)ll_pop_front(lb, NULL) == 6);
     assert(*(int *)ll_pop_back(lb, NULL) == 6);
     assert(ll_cmp_arr(lb, (int[]){6, 7, 8, 9, 10}, 5, sizeof(int)));
+
+
+    puts("ll_test: map, copy on write");
+    cdat_map_func map = (*_ll_test_map);
+    ll_map(lb, map);
+    assert(ll_cmp_arr(lb, (int[]){0,1,2,3,4}, 5, sizeof(int)));
+
+    puts("ll_test: ll_cmp_ll");
+    assert(ll_cmp_ll(la, lb));
 
     puts("ll_test: freeing");
     ll_free(la);

@@ -2,6 +2,7 @@
 #define CDAT_LINKED_LIST_H_
 
 #include <stdlib.h>
+#include <cdat/helpers.h>
 
 
 
@@ -24,11 +25,12 @@ typedef struct Linked_List {
     Linked_List_Node *_next;
 
     int copy_on_write;
+    cdat_cmp_func cmp;
 } Linked_List;
 
-void ll_init_empty(Linked_List *ll, int copy_on_write);
+void ll_init_empty(Linked_List *ll, cdat_cmp_func cmp, int copy_on_write);
 // values point to arr
-Linked_List *ll_from_arr(void *arr, size_t arr_len, size_t val_size, int copy_on_write);
+Linked_List *ll_from_arr(void *arr, size_t arr_len, size_t val_size, cdat_cmp_func cmp, int copy_on_write);
 //Linked_List *ll_copy_from_arr(void *arr, size_t arr_len, size_t val_size);
 //void *ll_copy_to_arr(Linked_List *ll);
 void *ll_to_arr(Linked_List *ll);
@@ -57,10 +59,11 @@ void *ll_remove(Linked_List *ll, int index, size_t *out_size);
 int ll_is_in(Linked_List *ll, void *val, size_t val_size);
 int ll_try_remove_val(Linked_List *ll, void *val, size_t val_size);
 
+// uses cmp func of la
 int ll_cmp_ll(Linked_List *la, Linked_List *lb);
 int ll_cmp_arr(Linked_List *ll, void *arr, size_t arr_size, size_t val_size);
 
-void ll_map( Linked_List *ll, void (*f)(void *, size_t) );
+void ll_map( Linked_List *ll, cdat_map_func map);
 
 void ll_test();
 
