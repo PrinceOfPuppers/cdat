@@ -46,5 +46,5 @@ int hs_are_equal(Hash_Set *hs1, Hash_Set *hs2);
 
 void hs_map( Hash_Set *hs, cdat_map_func map );
 
-
+void hs_test();
 #endif

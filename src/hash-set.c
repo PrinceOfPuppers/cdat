@@ -69,6 +69,12 @@ void hs_from_ll(Hash_Set *hs, Linked_List *ll){
     }
 }
 
+void hs_from_array(Hash_Set *hs, void *arr, size_t arr_len, size_t val_size){
+    for(int i = 0; i < arr_len; i++){
+        hs_add(hs, arr + i*val_size, val_size);
+    }
+}
+
 
 int hs_try_remove(Hash_Set *hs, void *val, size_t val_size){
     uint32_t h = hash_digit_fold(val, val_size, hs->hash_max);
@@ -144,17 +150,68 @@ void hs_map(Hash_Set *hs, cdat_map_func map){
     ll_map(&hs->keys_ll, map);
 }
 
+int _hs_test_cmp(void *va, size_t va_size, void *vb, size_t vb_size){
+    if(va_size != vb_size){
+        return 0;
+    }
+
+    return memcmp(va, vb, va_size) == 0;
+}
+
 void hs_test(){
     puts("hs_test: creation, no copy on write");
-    /*
-    Hash_Set *ha = hs_create(10000, 0);
 
+    cdat_cmp_func cmp = *_hs_test_cmp;
+
+    Hash_Set *ha = hs_create(10000, cmp, 0);
+
+
+    puts("hs_test: len, no copy on write");
+    assert(hs_len(ha) == 0);
     
-    hs_add(ha, )
 
-    puts("hs_test: creation from array, no copy on write");
+    puts("hs_test: add, no copy on write");
+    hs_add(ha, "test", 4);
+    hs_add(ha, "test", 4);
+    assert(hs_len(ha) == 1);
+
+
+    puts("hs_test: is in, no copy on write");
+    assert(hs_is_in(ha, "test", 4));
+    assert(!hs_is_in(ha, "testing", 5));
+
+
+    puts("hs_test: remove, no copy on write");
+    hs_try_remove(ha, "test", 4);
+    assert(!hs_is_in(ha, "test", 4));
+    assert(hs_len(ha) == 0);
+
+
+    puts("hs_test: creation, copy on write");
+    Hash_Set *hb = hs_create(300, cmp, 1);
+
+
+    puts("hs_test: add, copy on write");
+    hs_add(hb, "test", 4);
+    hs_add(hb, "test", 4);
+    assert(hs_len(hb) == 1);
+    
+
+    puts("hs_test: is in, copy on write");
+    assert(hs_is_in(ha, "test", 4));
+    assert(!hs_is_in(ha, "testing", 7));
+
+
+    puts("hs_test: is subset");
+    hs_add(ha, "test", 4);
+    hs_add(hb, "testing", 7);
+
+    assert(hs_is_subset(ha, hb));
+    assert(!hs_is_subset(hb, ha));
+
+
+    puts("hs_test: intersection");
 
     puts("hs_test: done");
-    */
 }
 

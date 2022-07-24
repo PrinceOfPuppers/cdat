@@ -101,7 +101,7 @@ static int _process_ll_index(Linked_List *ll, int index){
     assert(ll->head != NULL);
     index = index < 0 ? ll->len + index : index;
 
-    assert(index > 0);
+    assert(index >= 0);
     assert(index < ll->len);
 
     return index;
@@ -494,7 +494,7 @@ void ll_test(){
 
 
     puts("ll_test: map, copy on write");
-    cdat_map_func map = (*_ll_test_map);
+    cdat_map_func map = *_ll_test_map;
     ll_map(lb, map);
     assert(ll_cmp_arr(lb, (int[]){0,1,2,3,4}, 5, sizeof(int)));
 
