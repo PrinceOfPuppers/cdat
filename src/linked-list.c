@@ -62,6 +62,7 @@ void *ll_to_arr(Linked_List *ll){
 }
 
 
+
 // destroys ll and its nodes, does not touch values
 void ll_free_keep_vals(Linked_List *ll){
     while(ll->len > 0){
@@ -83,6 +84,7 @@ void ll_free(Linked_List *ll){
     }
     return ll_free_keep_vals(ll);
 }
+
 
 
 Linked_List_Node *ll_next(Linked_List *ll){

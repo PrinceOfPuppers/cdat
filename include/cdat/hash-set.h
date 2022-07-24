@@ -17,9 +17,14 @@ typedef struct Hash_Set {
 
 Hash_Set *hs_create(size_t hash_max, cdat_cmp_func map, int copy_on_write);
 
+void *hs_pop(Hash_Set *hs, size_t *out_size);
+
+// destroys hs and its linked lists, does not touch values
+void hs_free_keep_vals(Hash_Set *hs);
+void hs_free_free_vals(Hash_Set *hs);
+void hs_free(Hash_Set *hs);
 
 int hs_is_in(Hash_Set *hs, void *val, size_t val_size);
-
 
 int hs_add(Hash_Set *hs, void *val, size_t val_size);
 
@@ -29,7 +34,6 @@ void hs_from_ll(Hash_Set *hs, Linked_List *ll);
 int hs_try_remove(Hash_Set *hs, void *val, size_t val_size);
 
 Linked_List_Node *hs_next(Hash_Set *hs);
-
 void hs_iter_reset(Hash_Set *hs);
 
 size_t hs_len(Hash_Set *hs);

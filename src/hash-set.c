@@ -23,6 +23,43 @@ Hash_Set *hs_create(size_t hash_max, cdat_cmp_func cmp, int copy_on_write){
     return hs;
 }
 
+void *hs_pop(Hash_Set *hs, size_t *out_size){
+    size_t val_size;
+    void *val;
+    uint32_t h;
+    assert(hs->keys_ll.len > 0);
+    val = ll_pop_front(&hs->keys_ll, &val_size);
+    h = hash_digit_fold(val, val_size, hs->hash_max);
+    assert(ll_try_remove_val(&hs->hs_arr[h], val, val_size));
+    if(out_size != NULL){
+        *out_size = val_size;
+    }
+    return val;
+}
+
+// destroys hs and its linked lists, does not touch values
+void hs_free_keep_vals(Hash_Set *hs){
+    while(hs->keys_ll.len > 0){
+        hs_pop(hs, NULL);
+    }
+
+    free(hs);
+}
+
+void hs_free_free_vals(Hash_Set *hs){
+    while(hs->keys_ll.len > 0){
+        free(hs_pop(hs, NULL));
+    }
+    free(hs);
+}
+
+void hs_free(Hash_Set *hs){
+    if(hs->copy_on_write){
+        return hs_free_free_vals(hs);
+    }
+    return hs_free_keep_vals(hs);
+}
+
 
 int hs_is_in(Hash_Set *hs, void *val, size_t val_size){
     uint32_t h = hash_digit_fold(val, val_size, hs->hash_max);
@@ -198,8 +235,8 @@ void hs_test(){
     
 
     puts("hs_test: is in, copy on write");
-    assert(hs_is_in(ha, "test", 4));
-    assert(!hs_is_in(ha, "testing", 7));
+    assert(hs_is_in(hb, "test", 4));
+    assert(!hs_is_in(hb, "testing", 7));
 
 
     puts("hs_test: is subset");
@@ -211,6 +248,28 @@ void hs_test(){
 
 
     puts("hs_test: intersection");
+    Hash_Set *hc = hs_intersection(ha, hb, 1);
+    assert(hs_len(hc) == 1);
+    assert(hs_is_in(hc, "test", 4));
+
+    puts("hs_test: union");
+    Hash_Set *hd = hs_union(ha, hb, 1);
+    assert(hs_len(hd) == 2);
+    assert(hs_is_in(hd, "test", 4));
+    assert(hs_is_in(hd, "testing", 7));
+
+
+    puts("hs_test: pop, copy_on_write");
+    size_t val_size;
+    void *val = hs_pop(hd, &val_size);
+    assert(cmp(val, val_size, "test", 4) || cmp(val, val_size, "testing", 7));
+    free(val);
+
+    puts("hs_test: free");
+    hs_free(ha);
+    hs_free(hb);
+    hs_free(hc);
+    hs_free(hd);
 
     puts("hs_test: done");
 }
