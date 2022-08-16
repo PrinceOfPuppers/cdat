@@ -30,7 +30,11 @@ void *hs_pop(Hash_Set *hs, size_t *out_size){
     assert(hs->keys_ll.len > 0);
     val = ll_pop_front(&hs->keys_ll, &val_size);
     h = hash_digit_fold(val, val_size, hs->hash_max);
-    assert(ll_try_remove_val(&hs->hs_arr[h], val, val_size));
+
+    // x and val should point to same memory
+    void *x = ll_try_pop_val(&hs->hs_arr[h], val, val_size, NULL);
+    assert(x!=NULL);
+    //assert(ll_try_remove_val(&hs->hs_arr[h], val, val_size));
     if(out_size != NULL){
         *out_size = val_size;
     }
@@ -113,10 +117,19 @@ void hs_from_array(Hash_Set *hs, void *arr, size_t arr_len, size_t val_size){
 }
 
 
-int hs_try_remove(Hash_Set *hs, void *val, size_t val_size){
+void *hs_try_pop_val(Hash_Set *hs, void *val, size_t val_size, size_t *out_size){
     uint32_t h = hash_digit_fold(val, val_size, hs->hash_max);
-    if(ll_try_remove_val(&hs->hs_arr[h], val, val_size)){
-        assert(ll_try_remove_val(&hs->keys_ll, val, val_size));
+    void *res = ll_try_pop_val(&hs->hs_arr[h], val, val_size, out_size);
+    if(res != NULL){
+        assert(ll_try_pop_val(&hs->keys_ll, val, val_size, out_size) != NULL);
+        return res;
+    }
+    return NULL;
+}
+int hs_try_free_val(Hash_Set *hs, void *val, size_t val_size){
+    void *x = hs_try_pop_val(hs, val, val_size, NULL);
+    if(x != NULL){
+        free(x);
         return 1;
     }
     return 0;

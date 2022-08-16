@@ -57,7 +57,8 @@ void *ll_pop_front(Linked_List *ll, size_t *out_size);
 void *ll_remove(Linked_List *ll, int index, size_t *out_size);
 
 int ll_is_in(Linked_List *ll, void *val, size_t val_size);
-int ll_try_remove_val(Linked_List *ll, void *val, size_t val_size);
+void *ll_try_pop_val(Linked_List *ll, void *val, size_t val_size, size_t *out_size);
+int ll_try_free_val(Linked_List *ll, void *val, size_t val_size);
 
 // uses cmp func of la
 int ll_cmp_ll(Linked_List *la, Linked_List *lb);

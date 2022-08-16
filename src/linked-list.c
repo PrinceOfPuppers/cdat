@@ -338,16 +338,24 @@ int ll_is_in(Linked_List *ll, void *val, size_t val_size){
     return 0;
 }
 
-int ll_try_remove_val(Linked_List *ll, void *val, size_t val_size){
+void *ll_try_pop_val(Linked_List *ll, void *val, size_t val_size, size_t *out_size){
     Linked_List_Node *n = ll->head;
     int i = 0;
     while(n != NULL){
         if(ll->cmp(n->val, n->val_size, val, val_size)){
-            ll_remove(ll, i, NULL);
-            return 1;
+            void *res = ll_remove(ll, i, out_size);
+            return res;
         }
         i++;
         n = n->next;
+    }
+    return NULL;
+}
+int ll_try_free_val(Linked_List *ll, void *val, size_t val_size){
+    void *x = ll_try_pop_val(ll, val, val_size, NULL);
+    if(x != NULL){
+        free(x);
+        return 1;
     }
     return 0;
 }

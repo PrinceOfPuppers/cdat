@@ -29,9 +29,11 @@ int hs_is_in(Hash_Set *hs, void *val, size_t val_size);
 int hs_add(Hash_Set *hs, void *val, size_t val_size);
 
 void hs_from_ll(Hash_Set *hs, Linked_List *ll);
+void hs_from_array(Hash_Set *hs, void *arr, size_t arr_len, size_t val_size);
 
 
-int hs_try_remove(Hash_Set *hs, void *val, size_t val_size);
+void *hs_try_pop_val(Hash_Set *hs, void *val, size_t val_size, size_t *out_size);
+int hs_try_free_val(Hash_Set *hs, void *val, size_t val_size);
 
 Linked_List_Node *hs_next(Hash_Set *hs);
 void hs_iter_reset(Hash_Set *hs);
