@@ -42,7 +42,7 @@ void hm_get(Hash_Map *hm, void *key, size_t key_size, void *out_val, size_t *out
 int hm_add(Hash_Map *hm, void *key, size_t key_size, void *val, size_t val_size);
 
 
-int hm_try_pop_val(Hash_Map *hm, void *key, size_t key_size, void *key_out, size_t key_out_size, void *val_out, size_t *val_out_size);
+int hm_try_pop_val(Hash_Map *hm, void *key, size_t key_size, void *val_out, size_t *val_out_size);
 
 Linked_List_Node *hm_next(Hash_Map *hm);
 void hm_iter_reset(Hash_Map *hm);

@@ -190,7 +190,7 @@ int hm_add(Hash_Map *hm, void *key, size_t key_size, void *val, size_t val_size)
     return _hm_add_ref(hm, key, key_size, val, val_size);
 }
 
-int hm_try_pop_val(Hash_Map *hm, void *key, size_t key_size, void *key_out, size_t key_out_size, void *val_out, size_t *val_out_size){
+int hm_try_pop_val(Hash_Map *hm, void *key, size_t key_size, void *val_out, size_t *val_out_size){
     uint32_t h = hash_digit_fold(key, key_size, hm->hash_max);
     if (hm->hm_arr[h].len == 0){
         return 0;
@@ -286,71 +286,113 @@ int hm_is_key_equal(Hash_Map *hm1, Hash_Map *hm2){
     return hm_is_key_subset(hm1, hm2);
 }
 
-// TODO: undealtwith
 void hm_map(Hash_Map *hm, cdat_map_func map){
+    void *val = NULL;
+    size_t val_size;
+    Linked_List_Node *key_node = hm->keys_ll.head;
+    int i = 0;
+    while(key_node != NULL){
+        hm_get(hm, key_node->val, key_node->val_size, val, &val_size);
+        (*map)(i, val, val_size);
+
+        key_node = key_node->next;
+        i+=1;
+    }
     ll_map(&hm->keys_ll, map);
 }
 
-// TODO: undealtwith
-int _hm_test_cmp(void *va, size_t va_size, void *vb, size_t vb_size){
-    if(va_size != vb_size){
-        return 0;
-    }
-
-    return memcmp(va, vb, va_size) == 0;
-}
-
-// TODO: undealtwith
 void hm_test(){
     puts("hm_test: creation, no copy on write");
 
-    cdat_cmp_func cmp = *_hm_test_cmp;
-
-    Hash_Map *ha = hm_create(10000, cmp, 0);
+    Hash_Map *ha = hm_create(10000, 0);
 
 
-    puts("hm_test: len, no copy on write");
-    assert(hm_len(ha) == 0);
+    {
+        puts("hm_test: len, no copy on write");
+        assert(hm_len(ha) == 0);
+    }
     
 
-    puts("hm_test: add, no copy on write");
-    hm_add(ha, "test", 4);
-    hm_add(ha, "test", 4);
-    assert(hm_len(ha) == 1);
+    {
+        puts("hm_test: add, no copy on write");
+        int num1 = 1234;
+        hm_add(ha, "test", 4, &num1, sizeof(int));
+        hm_add(ha, "test", 4, &num1, sizeof(int));
+        assert(hm_len(ha) == 1);
 
+        puts("hm_test: get, no copy on write");
+        void *val1 = NULL;
+        size_t val_size1 = 0;
+        assert(!hm_try_get(ha, "testing", 4, val1, &val_size1));
+        assert(val1 == NULL);
+        assert(val_size1 == 0);
+        hm_get(ha, "testing", 4, val1, &val_size1);
+        assert(*(int *)val1 == 1234);
+        assert(val_size1 == sizeof(int));
 
-    puts("hm_test: is in, no copy on write");
-    assert(hm_is_in(ha, "test", 4));
-    assert(!hm_is_in(ha, "testing", 5));
+        // ensure no copy on write
+        assert(val1 == (void *)&num1);
+    }
 
+    {
+        puts("hm_test: is in, no copy on write");
+        assert(hm_is_in(ha, "test", 4));
+        assert(!hm_is_in(ha, "testing", 5));
+    }
 
-    puts("hm_test: remove, no copy on write");
-    hm_try_remove(ha, "test", 4);
-    assert(!hm_is_in(ha, "test", 4));
-    assert(hm_len(ha) == 0);
+    {
+        puts("hm_test: remove, no copy on write");
+        void *val2 = NULL;
+        size_t val_size2 = 0;
+        assert(hm_try_pop_val(ha, "test", 4, val2, &val_size2));
+        assert(*(int *)val2 == 1234);
+        assert(val_size2 == sizeof(int));
+        assert(!hm_is_in(ha, "test", 4));
+        assert(hm_len(ha) == 0);
+    }
 
 
     puts("hm_test: creation, copy on write");
-    Hash_Map *hb = hm_create(300, cmp, 1);
+    Hash_Map *hb = hm_create(300, 1);
 
+    {
+        puts("hm_test: add, copy on write");
+        int num2 = 5678;
+        hm_add(hb, "test", 4, &num2, sizeof(int));
+        hm_add(hb, "test", 4, &num2, sizeof(int));
+        assert(hm_len(hb) == 1);
 
-    puts("hm_test: add, copy on write");
-    hm_add(hb, "test", 4);
-    hm_add(hb, "test", 4);
-    assert(hm_len(hb) == 1);
+        puts("hm_test: get, copy on write");
+        void *val3 = NULL;
+        size_t val_size3 = 0;
+        assert(!hm_try_get(hb, "testing", 4, val3, &val_size3));
+        assert(val3 == NULL);
+        assert(val_size3 == 0);
+        hm_try_get(hb, "testing", 4, val3, &val_size3);
+        assert(*(int *)val3 == 5678);
+        assert(val_size3 == sizeof(int));
+
+        // ensure copy on write
+        assert(val3 != (void *)&num2);
+    }
+
     
+    {
+        puts("hm_test: is in, copy on write");
+        assert(hm_is_in(hb, "test", 4));
+        assert(!hm_is_in(hb, "testing", 7));
+    }
 
-    puts("hm_test: is in, copy on write");
-    assert(hm_is_in(hb, "test", 4));
-    assert(!hm_is_in(hb, "testing", 7));
+    {
+        puts("hm_test: is subset");
+        int num1 = 987;
+        int num2 = 765;
+        hm_add(ha, "test", 4, &num1, sizeof(int));
+        hm_add(hb, "testing", 7,&num2, sizeof(int));
 
-
-    puts("hm_test: is subset");
-    hm_add(ha, "test", 4);
-    hm_add(hb, "testing", 7);
-
-    assert(hm_is_subset(ha, hb));
-    assert(!hm_is_subset(hb, ha));
+        assert(hm_is_key_subset(ha, hb));
+        assert(!hm_is_key_subset(hb, ha));
+    }
 
 
     puts("hm_test: intersection");
