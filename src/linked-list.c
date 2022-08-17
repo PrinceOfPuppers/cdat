@@ -326,6 +326,20 @@ void *ll_get(Linked_List *ll, int index, size_t *out_size){
     return n->val;
 }
 
+void *ll_try_get_val(Linked_List *ll, void *val, size_t val_size, size_t *out_size){
+    Linked_List_Node *n = ll->head;
+    int i = 0;
+    while(n != NULL){
+        if(ll->cmp(n->val, n->val_size, val, val_size)){
+            void *res = ll_get(ll, i, out_size);
+            return res;
+        }
+        i++;
+        n = n->next;
+    }
+    return NULL;
+}
+
 
 int ll_is_in(Linked_List *ll, void *val, size_t val_size){
     Linked_List_Node *n = ll->head;
@@ -351,6 +365,8 @@ void *ll_try_pop_val(Linked_List *ll, void *val, size_t val_size, size_t *out_si
     }
     return NULL;
 }
+
+
 int ll_try_free_val(Linked_List *ll, void *val, size_t val_size){
     void *x = ll_try_pop_val(ll, val, val_size, NULL);
     if(x != NULL){

@@ -118,6 +118,34 @@ int hm_is_in(Hash_Map *hm, void *key, size_t key_size){
     return _hm_is_in(hm, key, key_size, &h);
 }
 
+int hm_try_get(Hash_Map *hm, void *key, size_t key_size, void *out_val, size_t *out_val_size){
+    uint32_t h = hash_digit_fold(key, key_size, hm->hash_max);
+    if (hm->hm_arr[h].len == 0){
+        return 0;
+    }
+
+    Hash_Map_LL_Node_Data key_wrapper;
+    key_wrapper.val = NULL;
+    key_wrapper.val_size = 0;
+    key_wrapper.key = key;
+    key_wrapper.key_size = key_size;
+
+    Hash_Map_LL_Node_Data *container = ll_try_get_val(&hm->hm_arr[h], &key_wrapper, sizeof(Hash_Map_LL_Node_Data), NULL);
+    if(container == NULL){
+        return 0;
+    }
+
+    out_val = container->val;
+    if(out_val_size != NULL){
+        *out_val_size = container->val_size;
+    }
+    return 1;
+}
+void hm_get(Hash_Map *hm, void *key, size_t key_size, void *out_val, size_t *out_val_size){
+    assert(hm_try_get(hm, key, key_size, out_val, out_val_size));
+}
+
+
 
 // returns 1 if added, 0 if already exists
 static int _hm_add_ref(Hash_Map *hm, void *key, size_t key_size, void *val, size_t val_size){
@@ -195,39 +223,50 @@ size_t hm_len(Hash_Map *hm){
     return hm->keys_ll.len;
 }
 
-// TODO: undealtwith
-Hash_Map *hm_union(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write){
-    Hash_Map *h = hm_create(
+Hash_Map *hm_key_union(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write){
+    Hash_Map *hm = hm_create(
             hm1->hash_max > hm2->hash_max ? hm1->hash_max : hm2->hash_max, 
-            hm1->keys_ll.cmp,
             copy_on_write
     );
-    hm_from_ll(h, &hm1->keys_ll);
-    hm_from_ll(h, &hm2->keys_ll);
-    return h;
-}
-
-// TODO: undealtwith
-Hash_Map *hm_intersection(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write){
-    Hash_Map *h = hm_create(
-            hm1->hash_max > hm2->hash_max ? hm1->hash_max : hm2->hash_max, 
-            hm1->keys_ll.cmp,
-            copy_on_write
-    );
-
-    Linked_List_Node *n = hm1->keys_ll.head;
-    while(n != NULL){
-        if(hm_is_in(hm2, n->val, n->val_size)){
-            hm_add(h, n->val, n->val_size);
-        }
-        n = n->next;
+    void *val = NULL;
+    size_t val_size;
+    Linked_List_Node *key_node = hm1->keys_ll.head;
+    while(key_node != NULL){
+        hm_get(hm1, key_node->val, key_node->val_size, val, &val_size);
+        hm_add(hm, key_node->val, key_node->val_size, val, val_size);
+        key_node = key_node->next;
     }
 
-    return h;
+    key_node = hm2->keys_ll.head;
+    while(key_node != NULL){
+        hm_get(hm2, key_node->val, key_node->val_size, val, &val_size);
+        hm_add(hm, key_node->val, key_node->val_size, val, val_size);
+        key_node = key_node->next;
+    }
+    return hm;
 }
 
-// TODO: undealtwith
-int hm_is_subset(Hash_Map *potential_subset, Hash_Map *potential_superset){
+Hash_Map *hm_key_intersection(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write){
+    Hash_Map *hm = hm_create(
+            hm1->hash_max > hm2->hash_max ? hm1->hash_max : hm2->hash_max, 
+            copy_on_write
+    );
+    void *val = NULL;
+    size_t val_size;
+    Linked_List_Node *key_node = hm1->keys_ll.head;
+    while(key_node != NULL){
+        if(hm_is_in(hm2, key_node->val, key_node->val_size)){
+            hm_get(hm1, key_node->val, key_node->val_size, val, &val_size);
+            hm_add(hm, key_node->val, key_node->val_size, val, val_size);
+        }
+
+        key_node = key_node->next;
+    }
+
+    return hm;
+}
+
+int hm_is_key_subset(Hash_Map *potential_subset, Hash_Map *potential_superset){
     Linked_List_Node *n = potential_subset->keys_ll.head;
     while(n != NULL){
         if(!hm_is_in(potential_superset, n->val, n->val_size)){
@@ -239,13 +278,12 @@ int hm_is_subset(Hash_Map *potential_subset, Hash_Map *potential_superset){
     return 1;
 }
 
-// TODO: undealtwith
-int hm_are_equal(Hash_Map *hm1, Hash_Map *hm2){
+int hm_is_key_equal(Hash_Map *hm1, Hash_Map *hm2){
     if(hm_len(hm1) != hm_len(hm2)){
         return 0;
     }
 
-    return hm_is_subset(hm1, hm2);
+    return hm_is_key_subset(hm1, hm2);
 }
 
 // TODO: undealtwith
@@ -262,6 +300,7 @@ int _hm_test_cmp(void *va, size_t va_size, void *vb, size_t vb_size){
     return memcmp(va, vb, va_size) == 0;
 }
 
+// TODO: undealtwith
 void hm_test(){
     puts("hm_test: creation, no copy on write");
 

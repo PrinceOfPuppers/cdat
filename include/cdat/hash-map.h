@@ -36,6 +36,9 @@ void hm_free(Hash_Map *hm);
 
 int hm_is_in(Hash_Map *hm, void *key, size_t key_size);
 
+int hm_try_get(Hash_Map *hm, void *key, size_t key_size, void *out_val, size_t *out_val_size);
+void hm_get(Hash_Map *hm, void *key, size_t key_size, void *out_val, size_t *out_val_size);
+
 int hm_add(Hash_Map *hm, void *key, size_t key_size, void *val, size_t val_size);
 
 
@@ -47,14 +50,12 @@ void hm_iter_reset(Hash_Map *hm);
 size_t hm_len(Hash_Map *hm);
 
 // result gets cmp function from hm1
-Hash_Map *hm_union(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write);
-
+Hash_Map *hm_key_union(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write);
 // result gets cmp function from hm1
-Hash_Map *hm_intersection(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write);
+Hash_Map *hm_key_intersection(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write);
+int hm_is_key_subset(Hash_Map *potential_subset, Hash_Map *potential_superset);
 
-int hm_is_subset(Hash_Map *potential_subset, Hash_Map *potential_superset);
-
-int hm_are_equal(Hash_Map *hm1, Hash_Map *hm2);
+int hm_is_key_equal(Hash_Map *hm1, Hash_Map *hm2);
 
 void hm_map( Hash_Map *hm, cdat_map_func map );
 

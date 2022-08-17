@@ -47,6 +47,7 @@ Linked_List_Node *ll_next(Linked_List *ll);
 void ll_iter_reset(Linked_List *ll);
 
 void *ll_get(Linked_List *ll, int index, size_t *out_size);
+void *ll_try_get_val(Linked_List *ll, void *val, size_t val_size, size_t *out_size);
 
 void ll_append(Linked_List *ll, void *val, size_t val_size);
 void ll_push(Linked_List *ll, void *val, size_t val_size);
