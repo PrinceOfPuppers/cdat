@@ -315,23 +315,23 @@ void hm_test(){
 
     {
         puts("hm_test: add, no copy on write");
-        int num1 = 1234;
-        hm_add(ha, "test", 4, &num1, sizeof(int));
-        hm_add(ha, "test", 4, &num1, sizeof(int));
+        int num = 1234;
+        hm_add(ha, "test", 4, &num, sizeof(int));
+        hm_add(ha, "test", 4, &num, sizeof(int));
         assert(hm_len(ha) == 1);
 
         puts("hm_test: get, no copy on write");
-        void *val1 = NULL;
-        size_t val_size1 = 0;
-        assert(!hm_try_get(ha, "testing", 4, val1, &val_size1));
-        assert(val1 == NULL);
-        assert(val_size1 == 0);
-        hm_get(ha, "testing", 4, val1, &val_size1);
-        assert(*(int *)val1 == 1234);
-        assert(val_size1 == sizeof(int));
+        void *val = NULL;
+        size_t val_size = 0;
+        assert(!hm_try_get(ha, "testing", 4, val, &val_size));
+        assert(val == NULL);
+        assert(val_size == 0);
+        hm_get(ha, "testing", 4, val, &val_size);
+        assert(*(int *)val == 1234);
+        assert(val_size == sizeof(int));
 
         // ensure no copy on write
-        assert(val1 == (void *)&num1);
+        assert(val == (void *)&num);
     }
 
     {
@@ -342,11 +342,11 @@ void hm_test(){
 
     {
         puts("hm_test: remove, no copy on write");
-        void *val2 = NULL;
-        size_t val_size2 = 0;
-        assert(hm_try_pop_val(ha, "test", 4, val2, &val_size2));
-        assert(*(int *)val2 == 1234);
-        assert(val_size2 == sizeof(int));
+        void *val = NULL;
+        size_t val_size = 0;
+        assert(hm_try_pop_val(ha, "test", 4, val, &val_size));
+        assert(*(int *)val == 1234);
+        assert(val_size == sizeof(int));
         assert(!hm_is_in(ha, "test", 4));
         assert(hm_len(ha) == 0);
     }
@@ -363,17 +363,17 @@ void hm_test(){
         assert(hm_len(hb) == 1);
 
         puts("hm_test: get, copy on write");
-        void *val3 = NULL;
-        size_t val_size3 = 0;
-        assert(!hm_try_get(hb, "testing", 4, val3, &val_size3));
-        assert(val3 == NULL);
-        assert(val_size3 == 0);
-        hm_try_get(hb, "testing", 4, val3, &val_size3);
-        assert(*(int *)val3 == 5678);
-        assert(val_size3 == sizeof(int));
+        void *val = NULL;
+        size_t val_size = 0;
+        assert(!hm_try_get(hb, "testing", 4, val, &val_size));
+        assert(val == NULL);
+        assert(val_size == 0);
+        hm_try_get(hb, "testing", 4, val, &val_size);
+        assert(*(int *)val == 5678);
+        assert(val_size == sizeof(int));
 
         // ensure copy on write
-        assert(val3 != (void *)&num2);
+        assert(val != (void *)&num2);
     }
 
     
@@ -395,29 +395,49 @@ void hm_test(){
     }
 
 
-    puts("hm_test: intersection");
-    Hash_Map *hc = hm_intersection(ha, hb, 1);
-    assert(hm_len(hc) == 1);
-    assert(hm_is_in(hc, "test", 4));
+    Hash_Map *hc = hm_key_intersection(ha, hb, 1);
+    {
+        puts("hm_test: intersection");
+        assert(hm_len(hc) == 1);
+        assert(hm_is_in(hc, "test", 4));
+    }
 
-    puts("hm_test: union");
-    Hash_Map *hd = hm_union(ha, hb, 1);
-    assert(hm_len(hd) == 2);
-    assert(hm_is_in(hd, "test", 4));
-    assert(hm_is_in(hd, "testing", 7));
+    Hash_Map *hd = hm_key_union(ha, hb, 1);
+    {
+        puts("hm_test: union");
+        assert(hm_len(hd) == 2);
+        assert(hm_is_in(hd, "test", 4));
+        assert(hm_is_in(hd, "testing", 7));
+    }
+
+    {
+        puts("hm_test: pop, copy_on_write");
+        void *val = NULL;
+        size_t val_size;
+        void *key = NULL;
+        size_t key_size;
+        int num1 = 5678;
+        int num2 = 765;
+        hm_pop(hd, key, &key_size, val, &val_size);
+        if(hm_key_cmp(key, key_size, "test", 4)){
+            assert(hm_key_cmp(val, val_size, &num1, sizeof(int)));
+        }else if(hm_key_cmp(key, key_size, "testing", 7)){
+            assert(hm_key_cmp(val, val_size, &num2, sizeof(int)));
+        }else{
+            assert(0);
+        }
+        free(val);
+    }
 
 
-    puts("hm_test: pop, copy_on_write");
-    size_t val_size;
-    void *val = hm_pop(hd, &val_size);
-    assert(cmp(val, val_size, "test", 4) || cmp(val, val_size, "testing", 7));
-    free(val);
+    {
+        puts("hm_test: free");
+        hm_free(ha);
+        hm_free(hb);
+        hm_free(hc);
+        hm_free(hd);
 
-    puts("hm_test: free");
-    hm_free(ha);
-    hm_free(hb);
-    hm_free(hc);
-    hm_free(hd);
+    }
 
     puts("hm_test: done");
 }
