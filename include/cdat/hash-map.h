@@ -27,7 +27,7 @@ int hm_ll_data_cmp(void *va, size_t va_size, void *vb, size_t vb_size);
 
 Hash_Map *hm_create(size_t hash_max, int copy_on_write);
 
-void hm_pop(Hash_Map *hm, void *out_key, size_t *out_key_size, void **out_val, size_t *out_val_size);
+void hm_pop(Hash_Map *hm, void **out_key, size_t *out_key_size, void **out_val, size_t *out_val_size);
 
 // destroys hm and its linked lists, does not touch values
 void hm_free_keep_keys_and_val(Hash_Map *hm);

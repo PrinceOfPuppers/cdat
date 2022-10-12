@@ -42,7 +42,7 @@ Hash_Map *hm_create(size_t hash_max, int copy_on_write){
 }
 
 
-void hm_pop(Hash_Map *hm, void *out_key, size_t *out_key_size, void **out_val, size_t *out_val_size){
+void hm_pop(Hash_Map *hm, void **out_key, size_t *out_key_size, void **out_val, size_t *out_val_size){
     assert(hm->keys_ll.len > 0);
 
     Hash_Map_LL_Node_Data key_wrapper;
@@ -57,9 +57,12 @@ void hm_pop(Hash_Map *hm, void *out_key, size_t *out_key_size, void **out_val, s
     Hash_Map_LL_Node_Data *container = (Hash_Map_LL_Node_Data *)ll_try_pop_val(&hm->hm_arr[h], (void *)&key_wrapper, sizeof(Hash_Map_LL_Node_Data), NULL);
     assert(container != NULL);
 
-    out_key = container->key;
-    *out_val = container->val;
-
+    if(out_key != NULL){
+        *out_key = container->key;
+    }
+    if(out_val != NULL){
+        *out_val = container->val;
+    }
     if(out_key_size != NULL){
         *out_key_size = container->key_size;
     }
@@ -135,7 +138,9 @@ int hm_try_get(Hash_Map *hm, void *key, size_t key_size, void **out_val, size_t 
         return 0;
     }
 
-    *out_val = container->val;
+    if(out_val != NULL){
+        *out_val = container->val;
+    }
     if(out_val_size != NULL){
         *out_val_size = container->val_size;
     }
@@ -207,11 +212,14 @@ int hm_try_pop_val(Hash_Map *hm, void *key, size_t key_size, void **out_val, siz
     Hash_Map_LL_Node_Data *container = (Hash_Map_LL_Node_Data *)ll_try_pop_val(&hm->hm_arr[h], (void *)&key_wrapper, sizeof(Hash_Map_LL_Node_Data), NULL);
 
     if(container != NULL){
-        *out_val = container->val;
+        if(out_val != NULL){
+            *out_val = container->val;
+        }
         if(out_val_size != NULL){
             *out_val_size = container->val_size;
         }
         assert(ll_try_pop_val(&hm->keys_ll, key, key_size, NULL) != NULL);
+        free(container);
         return 1;
     }
 
@@ -239,14 +247,14 @@ Hash_Map *hm_key_union(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write){
     size_t val_size;
     Linked_List_Node *key_node = hm1->keys_ll.head;
     while(key_node != NULL){
-        hm_get(hm1, key_node->val, key_node->val_size, val, &val_size);
+        hm_get(hm1, key_node->val, key_node->val_size, &val, &val_size);
         hm_add(hm, key_node->val, key_node->val_size, val, val_size);
         key_node = key_node->next;
     }
 
     key_node = hm2->keys_ll.head;
     while(key_node != NULL){
-        hm_get(hm2, key_node->val, key_node->val_size, val, &val_size);
+        hm_get(hm2, key_node->val, key_node->val_size, &val, &val_size);
         hm_add(hm, key_node->val, key_node->val_size, val, val_size);
         key_node = key_node->next;
     }
@@ -263,7 +271,7 @@ Hash_Map *hm_key_intersection(Hash_Map *hm1, Hash_Map *hm2, int copy_on_write){
     Linked_List_Node *key_node = hm1->keys_ll.head;
     while(key_node != NULL){
         if(hm_is_in(hm2, key_node->val, key_node->val_size)){
-            hm_get(hm1, key_node->val, key_node->val_size, val, &val_size);
+            hm_get(hm1, key_node->val, key_node->val_size, &val, &val_size);
             hm_add(hm, key_node->val, key_node->val_size, val, val_size);
         }
 
@@ -299,7 +307,7 @@ void hm_map(Hash_Map *hm, cdat_map_func map){
     Linked_List_Node *key_node = hm->keys_ll.head;
     int i = 0;
     while(key_node != NULL){
-        hm_get(hm, key_node->val, key_node->val_size, val, &val_size);
+        hm_get(hm, key_node->val, key_node->val_size, &val, &val_size);
         (*map)(i, val, val_size);
 
         key_node = key_node->next;
@@ -355,7 +363,6 @@ void hm_test(){
         void *val = NULL;
         size_t val_size = 0;
         assert(hm_try_pop_val(ha, "test", 4, &val, &val_size));
-        printf("val: %i\n", *(int *)val);
         assert(*(int *)val == 1234);
         assert(val_size == sizeof(int));
         assert(!hm_is_in(ha, "test", 4));
@@ -369,17 +376,17 @@ void hm_test(){
     {
         puts("hm_test: add, copy on write");
         int num2 = 5678;
-        hm_add(hb, "test", 4, &num2, sizeof(int));
-        hm_add(hb, "test", 4, &num2, sizeof(int));
+        assert(hm_add(hb, "test", 4, &num2, sizeof(int)) == 1);
+        assert(hm_add(hb, "test", 4, &num2, sizeof(int)) == 0);
         assert(hm_len(hb) == 1);
 
         puts("hm_test: get, copy on write");
         void *val = NULL;
         size_t val_size = 0;
-        assert(!hm_try_get(hb, "testing", 4, val, &val_size));
+        assert(!hm_try_get(hb, "testing", 7, &val, &val_size));
         assert(val == NULL);
         assert(val_size == 0);
-        hm_try_get(hb, "testing", 4, val, &val_size);
+        assert(hm_try_get(hb, "test", 4, &val, &val_size));
         assert(*(int *)val == 5678);
         assert(val_size == sizeof(int));
 
@@ -398,8 +405,8 @@ void hm_test(){
         puts("hm_test: is subset");
         int num1 = 987;
         int num2 = 765;
-        hm_add(ha, "test", 4, &num1, sizeof(int));
-        hm_add(hb, "testing", 7,&num2, sizeof(int));
+        assert(hm_add(ha, "test", 4, &num1, sizeof(int)));
+        assert(hm_add(hb, "testing", 7,&num2, sizeof(int)));
 
         assert(hm_is_key_subset(ha, hb));
         assert(!hm_is_key_subset(hb, ha));
@@ -429,7 +436,7 @@ void hm_test(){
         size_t key_size;
         int num1 = 5678;
         int num2 = 765;
-        hm_pop(hd, key, &key_size, val, &val_size);
+        hm_pop(hd, &key, &key_size, &val, &val_size);
         if(hm_key_cmp(key, key_size, "test", 4)){
             assert(hm_key_cmp(val, val_size, &num1, sizeof(int)));
         }else if(hm_key_cmp(key, key_size, "testing", 7)){
