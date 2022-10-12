@@ -232,7 +232,7 @@ void hs_test(){
 
 
     puts("hs_test: remove, no copy on write");
-    hs_try_remove(ha, "test", 4);
+    hs_try_pop_val(ha, "test", 4, NULL);
     assert(!hs_is_in(ha, "test", 4));
     assert(hs_len(ha) == 0);
 

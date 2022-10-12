@@ -15,13 +15,13 @@ int hm_ll_data_cmp(void *va, size_t va_size, void *vb, size_t vb_size){
     if (da->key_size != db->key_size){
         return 0;
     }
-    return memcmp(da->key, db->key, da->key_size);
+    return memcmp(da->key, db->key, da->key_size) == 0;
 }
 int hm_key_cmp(void *va, size_t va_size, void *vb, size_t vb_size){
     if (va_size != vb_size){
         return 0;
     }
-    return memcmp(va, vb, va_size);
+    return memcmp(va, vb, va_size) == 0;
 }
 
 Hash_Map *hm_create(size_t hash_max, int copy_on_write){
@@ -42,7 +42,7 @@ Hash_Map *hm_create(size_t hash_max, int copy_on_write){
 }
 
 
-void hm_pop(Hash_Map *hm, void *out_key, size_t *out_key_size, void *out_val, size_t *out_val_size){
+void hm_pop(Hash_Map *hm, void *out_key, size_t *out_key_size, void **out_val, size_t *out_val_size){
     assert(hm->keys_ll.len > 0);
 
     Hash_Map_LL_Node_Data key_wrapper;
@@ -58,7 +58,7 @@ void hm_pop(Hash_Map *hm, void *out_key, size_t *out_key_size, void *out_val, si
     assert(container != NULL);
 
     out_key = container->key;
-    out_val = container->val;
+    *out_val = container->val;
 
     if(out_key_size != NULL){
         *out_key_size = container->key_size;
@@ -118,7 +118,7 @@ int hm_is_in(Hash_Map *hm, void *key, size_t key_size){
     return _hm_is_in(hm, key, key_size, &h);
 }
 
-int hm_try_get(Hash_Map *hm, void *key, size_t key_size, void *out_val, size_t *out_val_size){
+int hm_try_get(Hash_Map *hm, void *key, size_t key_size, void **out_val, size_t *out_val_size){
     uint32_t h = hash_digit_fold(key, key_size, hm->hash_max);
     if (hm->hm_arr[h].len == 0){
         return 0;
@@ -135,13 +135,13 @@ int hm_try_get(Hash_Map *hm, void *key, size_t key_size, void *out_val, size_t *
         return 0;
     }
 
-    out_val = container->val;
+    *out_val = container->val;
     if(out_val_size != NULL){
         *out_val_size = container->val_size;
     }
     return 1;
 }
-void hm_get(Hash_Map *hm, void *key, size_t key_size, void *out_val, size_t *out_val_size){
+void hm_get(Hash_Map *hm, void *key, size_t key_size, void **out_val, size_t *out_val_size){
     assert(hm_try_get(hm, key, key_size, out_val, out_val_size));
 }
 
@@ -163,6 +163,7 @@ static int _hm_add_ref(Hash_Map *hm, void *key, size_t key_size, void *val, size
     return 0;
 }
 
+// returns 1 if added, 0 if already exists
 static int _hm_add_copy(Hash_Map *hm, void *key, size_t key_size, void *val, size_t val_size){
     uint32_t h;
     if(!_hm_is_in(hm, key, key_size, &h)){
@@ -183,6 +184,7 @@ static int _hm_add_copy(Hash_Map *hm, void *key, size_t key_size, void *val, siz
     return 0;
 }
 
+// returns 1 if added, 0 if already exists
 int hm_add(Hash_Map *hm, void *key, size_t key_size, void *val, size_t val_size){
     if(hm->copy_on_write){
         return _hm_add_copy(hm, key, key_size, val, val_size);
@@ -190,7 +192,7 @@ int hm_add(Hash_Map *hm, void *key, size_t key_size, void *val, size_t val_size)
     return _hm_add_ref(hm, key, key_size, val, val_size);
 }
 
-int hm_try_pop_val(Hash_Map *hm, void *key, size_t key_size, void *val_out, size_t *val_out_size){
+int hm_try_pop_val(Hash_Map *hm, void *key, size_t key_size, void **out_val, size_t *out_val_size){
     uint32_t h = hash_digit_fold(key, key_size, hm->hash_max);
     if (hm->hm_arr[h].len == 0){
         return 0;
@@ -202,12 +204,17 @@ int hm_try_pop_val(Hash_Map *hm, void *key, size_t key_size, void *val_out, size
     key_wrapper.key = key;
     key_wrapper.key_size = key_size;
 
-    val_out = ll_try_pop_val(&hm->hm_arr[h], &key_wrapper, sizeof(Hash_Map_LL_Node_Data), val_out_size);
+    Hash_Map_LL_Node_Data *container = (Hash_Map_LL_Node_Data *)ll_try_pop_val(&hm->hm_arr[h], (void *)&key_wrapper, sizeof(Hash_Map_LL_Node_Data), NULL);
 
-    if(val_out != NULL){
+    if(container != NULL){
+        *out_val = container->val;
+        if(out_val_size != NULL){
+            *out_val_size = container->val_size;
+        }
         assert(ll_try_pop_val(&hm->keys_ll, key, key_size, NULL) != NULL);
         return 1;
     }
+
     return 0;
 }
 
@@ -316,19 +323,22 @@ void hm_test(){
     {
         puts("hm_test: add, no copy on write");
         int num = 1234;
-        hm_add(ha, "test", 4, &num, sizeof(int));
-        hm_add(ha, "test", 4, &num, sizeof(int));
+        assert(hm_add(ha, "test", 4, &num, sizeof(int)) == 1);
+        assert(hm_add(ha, "test", 4, &num, sizeof(int)) == 0);
         assert(hm_len(ha) == 1);
 
         puts("hm_test: get, no copy on write");
         void *val = NULL;
         size_t val_size = 0;
-        assert(!hm_try_get(ha, "testing", 4, val, &val_size));
+        assert(!hm_try_get(ha, "testing", 7, &val, &val_size));
         assert(val == NULL);
         assert(val_size == 0);
-        hm_get(ha, "testing", 4, val, &val_size);
-        assert(*(int *)val == 1234);
+        assert(!hm_try_get(ha, "best", 4, &val, &val_size));
+        assert(val == NULL);
+        assert(val_size == 0);
+        hm_get(ha, "test", 4, &val, &val_size);
         assert(val_size == sizeof(int));
+        assert(*(int *)val == 1234);
 
         // ensure no copy on write
         assert(val == (void *)&num);
@@ -337,14 +347,15 @@ void hm_test(){
     {
         puts("hm_test: is in, no copy on write");
         assert(hm_is_in(ha, "test", 4));
-        assert(!hm_is_in(ha, "testing", 5));
+        assert(!hm_is_in(ha, "testing", 7));
     }
 
     {
         puts("hm_test: remove, no copy on write");
         void *val = NULL;
         size_t val_size = 0;
-        assert(hm_try_pop_val(ha, "test", 4, val, &val_size));
+        assert(hm_try_pop_val(ha, "test", 4, &val, &val_size));
+        printf("val: %i\n", *(int *)val);
         assert(*(int *)val == 1234);
         assert(val_size == sizeof(int));
         assert(!hm_is_in(ha, "test", 4));
