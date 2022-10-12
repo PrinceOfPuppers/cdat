@@ -321,12 +321,10 @@ void hm_test(){
 
     Hash_Map *ha = hm_create(10000, 0);
 
-
     {
         puts("hm_test: len, no copy on write");
         assert(hm_len(ha) == 0);
     }
-    
 
     {
         puts("hm_test: add, no copy on write");
@@ -418,6 +416,7 @@ void hm_test(){
         puts("hm_test: intersection");
         assert(hm_len(hc) == 1);
         assert(hm_is_in(hc, "test", 4));
+        assert(!hm_is_in(hc, "testing", 7));
     }
 
     Hash_Map *hd = hm_key_union(ha, hb, 1);
@@ -426,6 +425,7 @@ void hm_test(){
         assert(hm_len(hd) == 2);
         assert(hm_is_in(hd, "test", 4));
         assert(hm_is_in(hd, "testing", 7));
+        assert(!hm_is_in(hd, "asdf", 4));
     }
 
     {
@@ -434,7 +434,7 @@ void hm_test(){
         size_t val_size;
         void *key = NULL;
         size_t key_size;
-        int num1 = 5678;
+        int num1 = 987;
         int num2 = 765;
         hm_pop(hd, &key, &key_size, &val, &val_size);
         if(hm_key_cmp(key, key_size, "test", 4)){
